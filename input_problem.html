@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}問題を入力 - 受験対策アプリ{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-800 mb-1">✏️ 間違えた問題を入力</h2>
+  <p class="text-gray-500">間違えた問題を入力すると、似た問題を3問作ります。</p>
+</div>
+
+{% if error %}
+<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6">
+  ⚠️ {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/generate" id="genForm">
+  <!-- 科目選択 -->
+  <div class="bg-white rounded-2xl shadow-sm p-6 mb-5">
+    <label class="block font-bold text-gray-700 mb-3">📚 科目を選んでください</label>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="subject-select">
+        <input type="radio" name="subject" value="算数" checked class="hidden">
+        <div class="subject-card" data-subject="算数">
+          <span class="text-3xl">🔢</span>
+          <span class="font-bold">算数</span>
+        </div>
+      </label>
+      <label class="subject-select">
+        <input type="radio" name="subject" value="国語" class="hidden">
+        <div class="subject-card" data-subject="国語">
+          <span class="text-3xl">📝</span>
+          <span class="font-bold">国語</span>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- 入力モード切替タブ -->
+  <div class="bg-white rounded-2xl shadow-sm p-6 mb-5">
+    <div class="flex gap-2 mb-5">
+      <button type="button" id="tabText"
+        class="tab-btn active flex-1 py-2 rounded-lg font-bold text-sm transition-colors duration-200">
+        ⌨️ テキストで入力
+      </button>
+      <button type="button" id="tabImage"
+        class="tab-btn flex-1 py-2 rounded-lg font-bold text-sm transition-colors duration-200">
+        🖼️ 画像で入力
+      </button>
+    </div>
+
+    <!-- テキスト入力エリア -->
+    <div id="textArea">
+      <label class="block font-bold text-gray-700 mb-3" for="problem">
+        ❓ 間違えた問題を書いてください
+      </label>
+      <textarea
+        id="problem"
+        name="problem"
+        rows="6"
+        class="w-full border-2 border-gray-200 rounded-xl p-4 text-gray-700 focus:border-blue-400 focus:outline-none resize-none text-base"
+        placeholder="例：りんごが3袋あります。1袋に5個入っています。全部で何個ですか？"
+      ></textarea>
+      <p class="text-gray-400 text-sm mt-2">※問題文をそのままコピーして貼り付けてもOKです</p>
+    </div>
+
+    <!-- 画像入力エリア -->
+    <div id="imageArea" class="hidden">
+      <label class="block font-bold text-gray-700 mb-3">
+        🖼️ 問題の写真・スクリーンショット
+      </label>
+
+      <!-- ドロップゾーン -->
+      <div id="dropZone"
+        class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors duration-200">
+        <div id="dropPrompt">
+          <div class="text-5xl mb-3">📷</div>
+          <p class="text-gray-600 font-bold mb-1">ここをクリックして画像を選ぶ</p>
+          <p class="text-gray-400 text-sm">または ドラッグ＆ドロップ・Ctrl+V で貼り付け</p>
+          <p class="text-gray-400 text-xs mt-1">対応形式: JPG, PNG, GIF, WebP</p>
+        </div>
+        <img id="imagePreview" class="hidden max-w-full max-h-64 mx-auto rounded-lg shadow" alt="プレビュー">
+      </div>
+
+      <!-- ファイル選択（非表示） -->
+      <input type="file" id="fileInput" accept="image/*" class="hidden">
+
+      <!-- 画像削除ボタン -->
+      <button type="button" id="clearImage"
+        class="hidden mt-3 text-sm text-red-500 hover:text-red-700 font-medium">
+        ✕ 画像を削除して選び直す
+      </button>
+
+      <!-- base64データ（hidden） -->
+      <input type="hidden" name="image_data" id="imageDataInput">
+    </div>
+  </div>
+
+  <!-- 送信ボタン -->
+  <button type="submit" id="submitBtn"
+    class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-xl text-lg transition-all duration-200 flex items-center justify-center gap-2">
+    <span id="btnText">✨ 類似問題を作る</span>
+    <span id="btnLoading" class="hidden flex items-center gap-2">
+      <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      問題を作っています...（少々お待ちください）
+    </span>
+  </button>
+</form>
+
+<script>
+  // ---- 科目選択 ----
+  document.querySelectorAll('.subject-select').forEach(label => {
+    const input = label.querySelector('input[type="radio"]');
+    const card = label.querySelector('.subject-card');
+    function updateCard() {
+      card.classList.toggle('active', input.checked);
+    }
+    input.addEventListener('change', () => {
+      document.querySelectorAll('.subject-card').forEach(c => c.classList.remove('active'));
+      updateCard();
+    });
+    updateCard();
+  });
+
+  // ---- タブ切替 ----
+  const tabText = document.getElementById('tabText');
+  const tabImage = document.getElementById('tabImage');
+  const textArea = document.getElementById('textArea');
+  const imageArea = document.getElementById('imageArea');
+  let mode = 'text';
+
+  function setMode(m) {
+    mode = m;
+    const problemField = document.getElementById('problem');
+    if (m === 'text') {
+      tabText.classList.add('active');
+      tabImage.classList.remove('active');
+      textArea.classList.remove('hidden');
+      imageArea.classList.add('hidden');
+      problemField.setAttribute('name', 'problem');
+      document.getElementById('imageDataInput').value = '';
+    } else {
+      tabImage.classList.add('active');
+      tabText.classList.remove('active');
+      imageArea.classList.remove('hidden');
+      textArea.classList.add('hidden');
+      problemField.removeAttribute('name'); // 画像モード時はテキストを送信しない
+    }
+  }
+
+  tabText.addEventListener('click', () => setMode('text'));
+  tabImage.addEventListener('click', () => setMode('image'));
+
+  // ---- 画像処理 ----
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const imagePreview = document.getElementById('imagePreview');
+  const dropPrompt = document.getElementById('dropPrompt');
+  const clearBtn = document.getElementById('clearImage');
+  const imageDataInput = document.getElementById('imageDataInput');
+
+  function loadImage(file) {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('画像ファイルを選んでください（JPG, PNG など）');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      imageDataInput.value = dataUrl;
+      imagePreview.src = dataUrl;
+      imagePreview.classList.remove('hidden');
+      dropPrompt.classList.add('hidden');
+      clearBtn.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // クリックでファイル選択
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => loadImage(e.target.files[0]));
+
+  // ドラッグ＆ドロップ
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('border-blue-400', 'bg-blue-50');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+  });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+    const file = e.dataTransfer.files[0];
+    loadImage(file);
+  });
+
+  // Ctrl+V でクリップボードから貼り付け
+  document.addEventListener('paste', e => {
+    if (mode !== 'image') return;
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        loadImage(item.getAsFile());
+        break;
+      }
+    }
+  });
+
+  // 画像クリア
+  clearBtn.addEventListener('click', () => {
+    imageDataInput.value = '';
+    imagePreview.src = '';
+    imagePreview.classList.add('hidden');
+    dropPrompt.classList.remove('hidden');
+    clearBtn.classList.add('hidden');
+    fileInput.value = '';
+  });
+
+  // ---- 送信時バリデーション & ローディング ----
+  document.getElementById('genForm').addEventListener('submit', function(e) {
+    if (mode === 'image' && !imageDataInput.value) {
+      e.preventDefault();
+      alert('画像を選んでください。');
+      return;
+    }
+    const btn = document.getElementById('submitBtn');
+    document.getElementById('btnText').classList.add('hidden');
+    document.getElementById('btnLoading').classList.remove('hidden');
+    btn.disabled = true;
+    btn.classList.add('opacity-75');
+  });
+</script>
+{% endblock %}
