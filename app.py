@@ -16,37 +16,31 @@ app = FastAPI(title="受験対策アプリ")
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["enumerate"] = enumerate
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-def check_auth(request: Request) -> bool:
-    return request.session.get("authenticated") is True
-
-
-@app.middleware("http")
-async def auth_middleware(request: Request, call_next):
-    """ログインページ・静的ファイル以外は認証必須"""
-    path = request.url.path
-    if path.startswith("/static") or path in ("/login",):
-        return await call_next(request)
-    if not check_auth(request):
-        return RedirectResponse(url="/login", status_code=302)
-    return await call_next(request)
-
-
-# SessionMiddleware は auth_middleware より後に add することで
-# リクエスト処理時に先に実行され request.session が使えるようになる
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "change-this-secret-key-in-production")
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+DATABASE_PATH = os.getenv("DATABASE_PATH", "exam_prep.db")
+
+
+# ---- 認証ヘルパー ----
+
+def is_authenticated(request: Request) -> bool:
+    return request.session.get("authenticated") is True
+
+
+def login_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/login", status_code=302)
 
 
 # ---- ログイン / ログアウト ----
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    if check_auth(request):
+    if is_authenticated(request):
         return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
 
@@ -73,8 +67,8 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=302)
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "exam_prep.db")
 
+# ---- DB ----
 
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -105,6 +99,8 @@ def init_db():
     conn.close()
 
 
+# ---- AI ----
+
 def get_claude_client():
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
@@ -119,7 +115,6 @@ JSON_FORMAT = """{
     {"problem": "問題文", "answer": "答え", "hint": "考え方のヒント"}
   ]
 }"""
-
 
 MATH_NOTES = """【難易度の基準：偏差値50レベルの中学受験（中堅校）】
 - 速さ・割合・比・平面図形・基本的な規則性など標準的な単元から出題する
@@ -153,7 +148,6 @@ def build_image_prompt(subject: str) -> str:
 
 
 def extract_image_data(data_url: str) -> tuple[str, str]:
-    """data:image/jpeg;base64,... を (media_type, base64_data) に分解する"""
     match = re.match(r"data:([^;]+);base64,(.+)", data_url, re.DOTALL)
     if not match:
         raise ValueError("無効な画像データです")
@@ -166,25 +160,6 @@ def parse_generated(response_text: str) -> list:
     if start == -1 or end == 0:
         raise ValueError("JSONが見つかりませんでした")
     return json.loads(response_text[start:end])["problems"]
-
-
-@app.on_event("startup")
-async def startup():
-    init_db()
-
-
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    conn = get_db()
-    row = conn.execute("SELECT COUNT(*) as cnt FROM problems").fetchone()
-    total = row["cnt"]
-    conn.close()
-    return templates.TemplateResponse("index.html", {"request": request, "total": total})
-
-
-@app.get("/input", response_class=HTMLResponse)
-async def input_page(request: Request):
-    return templates.TemplateResponse("input_problem.html", {"request": request})
 
 
 def save_generated(subject: str, original_label: str, generated: list) -> int:
@@ -204,6 +179,30 @@ def save_generated(subject: str, original_label: str, generated: list) -> int:
     return problem_id
 
 
+# ---- ルート ----
+
+@app.on_event("startup")
+async def startup():
+    init_db()
+
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    if not is_authenticated(request):
+        return login_redirect()
+    conn = get_db()
+    total = conn.execute("SELECT COUNT(*) as cnt FROM problems").fetchone()["cnt"]
+    conn.close()
+    return templates.TemplateResponse("index.html", {"request": request, "total": total})
+
+
+@app.get("/input", response_class=HTMLResponse)
+async def input_page(request: Request):
+    if not is_authenticated(request):
+        return login_redirect()
+    return templates.TemplateResponse("input_problem.html", {"request": request})
+
+
 @app.post("/generate", response_class=HTMLResponse)
 async def generate_problems(
     request: Request,
@@ -211,6 +210,9 @@ async def generate_problems(
     problem: str = Form(""),
     image_data: str = Form("")
 ):
+    if not is_authenticated(request):
+        return login_redirect()
+
     use_image = bool(image_data.strip())
     if not use_image and not problem.strip():
         return templates.TemplateResponse("input_problem.html", {
@@ -282,6 +284,8 @@ async def generate_problems(
 
 @app.get("/history", response_class=HTMLResponse)
 async def history_page(request: Request):
+    if not is_authenticated(request):
+        return login_redirect()
     conn = get_db()
     rows = conn.execute("""
         SELECT p.id, p.subject, p.original_problem, p.created_at,
@@ -297,6 +301,8 @@ async def history_page(request: Request):
 
 @app.get("/practice/{problem_id}", response_class=HTMLResponse)
 async def practice_page(request: Request, problem_id: int):
+    if not is_authenticated(request):
+        return login_redirect()
     conn = get_db()
     original = conn.execute("SELECT * FROM problems WHERE id = ?", (problem_id,)).fetchone()
     if not original:
@@ -314,7 +320,9 @@ async def practice_page(request: Request, problem_id: int):
 
 
 @app.post("/delete/{problem_id}")
-async def delete_problem(problem_id: int):
+async def delete_problem(request: Request, problem_id: int):
+    if not is_authenticated(request):
+        return login_redirect()
     conn = get_db()
     conn.execute("DELETE FROM generated_problems WHERE original_problem_id = ?", (problem_id,))
     conn.execute("DELETE FROM problems WHERE id = ?", (problem_id,))
