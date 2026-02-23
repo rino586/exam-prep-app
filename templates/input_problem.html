@@ -61,6 +61,7 @@
         placeholder="例：りんごが3袋あります。1袋に5個入っています。全部で何個ですか？"
       ></textarea>
       <p class="text-gray-400 text-sm mt-2">※問題文をそのままコピーして貼り付けてもOKです</p>
+    <p class="text-orange-400 text-sm mt-1">※日本語を手入力する場合は、<strong>Enterキーで変換を確定</strong>してからボタンを押してください</p>
     </div>
 
     <!-- 画像入力エリア -->
@@ -92,8 +93,6 @@
 
       <!-- base64データ（hidden） -->
       <input type="hidden" name="image_data" id="imageDataInput">
-      <!-- テキスト欄を空に（画像モード時） -->
-      <input type="hidden" name="problem" value="">
     </div>
   </div>
 
@@ -135,25 +134,24 @@
 
   function setMode(m) {
     mode = m;
+    const problemField = document.getElementById('problem');
     if (m === 'text') {
       tabText.classList.add('active');
       tabImage.classList.remove('active');
       textArea.classList.remove('hidden');
       imageArea.classList.add('hidden');
+      problemField.setAttribute('name', 'problem');
       document.getElementById('imageDataInput').value = '';
     } else {
       tabImage.classList.add('active');
       tabText.classList.remove('active');
       imageArea.classList.remove('hidden');
       textArea.classList.add('hidden');
-      document.getElementById('problem').removeAttribute('name'); // 画像モード時はテキスト送信しない
+      problemField.removeAttribute('name'); // 画像モード時はテキストを送信しない
     }
   }
 
-  tabText.addEventListener('click', () => {
-    setMode('text');
-    document.getElementById('problem').setAttribute('name', 'problem');
-  });
+  tabText.addEventListener('click', () => setMode('text'));
   tabImage.addEventListener('click', () => setMode('image'));
 
   // ---- 画像処理 ----
@@ -228,6 +226,14 @@
       e.preventDefault();
       alert('画像を選んでください。');
       return;
+    }
+    if (mode === 'text') {
+      const val = document.getElementById('problem').value;
+      if (!val.trim()) {
+        e.preventDefault();
+        alert('問題を入力してください。\n\n※日本語入力の場合はEnterキーで変換を確定してからボタンを押してください。');
+        return;
+      }
     }
     const btn = document.getElementById('submitBtn');
     document.getElementById('btnText').classList.add('hidden');
