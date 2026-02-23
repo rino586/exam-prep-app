@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン - 受験対策アプリ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center px-4">
+  <div class="bg-white rounded-2xl shadow-md p-8 w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="text-5xl mb-3">📚</div>
+      <h1 class="text-2xl font-bold text-gray-800">受験対策アプリ</h1>
+      <p class="text-gray-400 text-sm mt-1">パスワードを入力してください</p>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-5 text-sm">
+      ⚠️ {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/login">
+      <div class="mb-5">
+        <label class="block text-sm font-bold text-gray-700 mb-2" for="password">
+          🔑 パスワード
+        </label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-700 focus:border-blue-400 focus:outline-none text-base"
+          placeholder="パスワードを入力"
+          autofocus
+          required
+        >
+      </div>
+      <button type="submit"
+        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl text-base transition-colors duration-200">
+        ログイン
+      </button>
+    </form>
+  </div>
+</body>
+</html>

@@ -7,14 +7,69 @@ from datetime import datetime
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
 import anthropic
 import uvicorn
 
 app = FastAPI(title="受験対策アプリ")
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["enumerate"] = enumerate
+
+# セッション（パスワード認証に使用）
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "change-this-secret-key-in-production")
+)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+def check_auth(request: Request) -> bool:
+    return request.session.get("authenticated") is True
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """ログインページ・静的ファイル以外は認証必須"""
+    path = request.url.path
+    if path.startswith("/static") or path in ("/login",):
+        return await call_next(request)
+    if not check_auth(request):
+        return RedirectResponse(url="/login", status_code=302)
+    return await call_next(request)
+
+
+# ---- ログイン / ログアウト ----
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if check_auth(request):
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.post("/login", response_class=HTMLResponse)
+async def login_post(request: Request, password: str = Form(...)):
+    app_password = os.getenv("APP_PASSWORD", "")
+    if not app_password:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "パスワードが設定されていません。環境変数 APP_PASSWORD を設定してください。"
+        })
+    if password == app_password:
+        request.session["authenticated"] = True
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": "パスワードが違います。もう一度入力してください。"
+    })
+
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=302)
 
 DATABASE_PATH = os.getenv("DATABASE_PATH", "exam_prep.db")
 
