@@ -16,12 +16,6 @@ app = FastAPI(title="受験対策アプリ")
 templates = Jinja2Templates(directory="templates")
 templates.env.globals["enumerate"] = enumerate
 
-# セッション（パスワード認証に使用）
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", "change-this-secret-key-in-production")
-)
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -38,6 +32,14 @@ async def auth_middleware(request: Request, call_next):
     if not check_auth(request):
         return RedirectResponse(url="/login", status_code=302)
     return await call_next(request)
+
+
+# SessionMiddleware は auth_middleware より後に add することで
+# リクエスト処理時に先に実行され request.session が使えるようになる
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "change-this-secret-key-in-production")
+)
 
 
 # ---- ログイン / ログアウト ----
