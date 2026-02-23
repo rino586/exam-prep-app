@@ -217,9 +217,10 @@ async def generate_problems(request: Request):
 
     use_image = bool(image_data.strip())
     if not use_image and not problem.strip():
+        keys = list(form_data.keys())
         return templates.TemplateResponse("input_problem.html", {
             "request": request,
-            "error": "問題を入力するか、画像をアップロードしてください。"
+            "error": f"[デバッグ] 受信したフィールド: {keys} / subject='{subject}' / problem文字数={len(problem)}"
         })
 
     try:
