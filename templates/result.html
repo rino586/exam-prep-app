@@ -8,7 +8,14 @@
       {{ '🔢 算数' if subject == '算数' else '📝 国語' }}
     </span>
   </div>
-  <h2 class="text-2xl font-bold text-gray-800">✨ 類似問題ができました！</h2>
+  <div class="flex items-center gap-2">
+    <h2 class="text-2xl font-bold text-gray-800">✨ 類似問題ができました！</h2>
+    {% if search_used %}
+    <span class="text-xs bg-green-100 text-green-700 font-bold px-2 py-1 rounded-full">🔍 Web検索参照済み</span>
+    {% else %}
+    <span class="text-xs bg-gray-100 text-gray-400 font-bold px-2 py-1 rounded-full">🔍 Web検索なし</span>
+    {% endif %}
+  </div>
 </div>
 
 <!-- 元の問題 -->

@@ -433,6 +433,10 @@ async def generate_problems(request: Request):
             original_label = "（画像で入力された問題）"
         else:
             search_context = search_similar_problems(subject, problem.strip())
+            if search_context:
+                print(f"[Tavily] Web検索成功: {len(search_context)}文字の参考情報を取得")
+            else:
+                print("[Tavily] Web検索スキップ（APIキー未設定 or 結果なし）")
             message = client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=4000,
@@ -449,7 +453,8 @@ async def generate_problems(request: Request):
             "original": original_label,
             "image_data": image_data.strip() if use_image else "",
             "problems": generated,
-            "problem_id": problem_id
+            "problem_id": problem_id,
+            "search_used": bool(search_context)
         })
 
     except (json.JSONDecodeError, ValueError, KeyError):
