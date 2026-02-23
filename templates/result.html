@@ -29,24 +29,53 @@
       <span class="w-7 h-7 rounded-full bg-blue-500 text-white text-sm font-bold flex items-center justify-center">{{ i+1 }}</span>
       <span class="font-bold text-gray-700">問題 {{ i+1 }}</span>
     </div>
-    <p class="text-gray-800 text-base mb-4 leading-relaxed">{{ p.problem }}</p>
+    {% if p.passage %}
+    <div class="mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+      <p class="text-xs font-bold text-gray-400 mb-2">
+        📄 問題文
+        {% if p.passage_type %}<span class="ml-1 text-blue-400">（{{ p.passage_type }}）</span>{% endif %}
+      </p>
+      <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{{ p.passage }}</p>
+    </div>
+    {% endif %}
+    <p class="text-gray-800 text-base leading-relaxed">{{ p.problem }}</p>
+    {% if p.problem_figure %}
+    <div class="mt-3 mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <p class="text-xs font-bold text-blue-500 mb-2">📐 図・表</p>
+      <pre class="text-sm text-gray-800 whitespace-pre font-mono leading-relaxed">{{ p.problem_figure }}</pre>
+    </div>
+    {% else %}
+    <div class="mb-4"></div>
+    {% endif %}
 
     <div class="space-y-2">
-      <details class="group">
+      <details>
         <summary class="cursor-pointer bg-yellow-50 hover:bg-yellow-100 text-yellow-700 font-bold py-2 px-4 rounded-lg inline-flex items-center gap-1 select-none">
           💡 ヒントを見る
         </summary>
-        <div class="mt-2 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-yellow-800">
-          {{ p.hint }}
+        <div class="mt-2 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-yellow-800 space-y-3">
+          <p>{{ p.hint }}</p>
+          {% if p.hint_figure %}
+          <div class="bg-white border border-yellow-300 rounded-lg p-3">
+            <p class="text-xs font-bold text-yellow-600 mb-1">📐 図・表</p>
+            <pre class="text-sm text-gray-700 whitespace-pre font-mono leading-relaxed">{{ p.hint_figure }}</pre>
+          </div>
+          {% endif %}
         </div>
       </details>
 
-      <details class="group">
+      <details>
         <summary class="cursor-pointer bg-green-50 hover:bg-green-100 text-green-700 font-bold py-2 px-4 rounded-lg inline-flex items-center gap-1 select-none">
           ✅ 答えを見る
         </summary>
-        <div class="mt-2 bg-green-50 border border-green-200 rounded-xl p-4">
+        <div class="mt-2 bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
           <p class="text-green-800 font-bold text-lg">{{ p.answer }}</p>
+          {% if p.steps %}
+          <div class="bg-white border border-green-300 rounded-lg p-3">
+            <p class="text-xs font-bold text-green-600 mb-1">🧮 計算式・解き方</p>
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">{{ p.steps }}</pre>
+          </div>
+          {% endif %}
         </div>
       </details>
     </div>
