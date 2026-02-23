@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}履歴 - 受験対策アプリ{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-gray-800 mb-1">📋 問題の履歴</h2>
+  <p class="text-gray-500">これまでに入力した問題の一覧です。</p>
+</div>
+
+{% if problems %}
+<div class="space-y-3">
+  {% for p in problems %}
+  <div class="bg-white rounded-2xl shadow-sm p-5 flex items-start gap-4">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="subject-badge text-xs {{ 'bg-yellow-100 text-yellow-700' if p.subject == '算数' else 'bg-pink-100 text-pink-700' }}">
+          {{ '🔢 算数' if p.subject == '算数' else '📝 国語' }}
+        </span>
+        <span class="text-gray-400 text-xs">{{ p.created_at }}</span>
+      </div>
+      <p class="text-gray-700 text-sm truncate">{{ p.original_problem }}</p>
+      <p class="text-gray-400 text-xs mt-1">類似問題 {{ p.generated_count }}問</p>
+    </div>
+    <a href="/practice/{{ p.id }}" class="shrink-0 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors duration-200">
+      練習する
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-16">
+  <div class="text-6xl mb-4">📭</div>
+  <p class="text-gray-500 text-lg mb-6">まだ問題が入力されていません</p>
+  <a href="/input" class="btn-primary">✏️ 最初の問題を入力する</a>
+</div>
+{% endif %}
+{% endblock %}
